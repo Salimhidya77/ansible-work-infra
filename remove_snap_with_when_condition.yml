@@ -1,0 +1,52 @@
+---
+
+- name: Remove snapshots older than 15 days
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+   - vars.yml
+
+  tasks:
+    - name: Get snapshot information
+      community.vmware.vmware_guest_snapshot_info:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: false
+        datacenter: "{{ datacenter_name }}"
+        folder: "{{ folder_name }}"
+        name: "{{ item }}"
+      loop: "{{ vm_list }}"
+      register: snapshot_info
+
+    - name: show snap_info
+      debug:
+        var: snapshot_info
+
+    - name: Remove snapshot if older than 15 days
+      community.vmware.vmware_guest_snapshot:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: false
+        datacenter: "{{ datacenter_name }}"
+        folder: "{{ folder_name }}"
+        name: "{{ item.item }}"
+        snapshot_name: "Test Snapshot"
+        state: absent
+      loop: "{{ snapshot_info.result }}"
+      when:
+        - item.guest_snapshots.snapshots is defined
+        - item.guest_snapshots.snapshots | length > 0
+        - >
+           (
+            (ansible_date_time.epoch | int)
+            -
+            (
+             item.guest_snapshots.snapshots[0].creation_time
+             | to_datetime('%Y-%m-%dT%H:%M:%S.%fZ')
+             | strftime('%s')
+             | int
+            )
+           ) > (15 * 24 * 60 * 60)
+
