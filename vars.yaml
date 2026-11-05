@@ -1,0 +1,31 @@
+---
+
+# vCenter
+vcenter_hostname: "10.15.0.222"
+vcenter_username: "Administrator@vsphere.htest.local"
+vcenter_password: "LiNux-Plu$@2026"
+vcenter_validate_certs: false
+session_timeout: 1500
+
+# Folder
+datacenter_name: "Datacenter"
+#folder_name: "temp-folder-salim"
+folder_type: "vm"
+
+# VM Deployment
+#vm_name: "first-vm"
+storage_provisioning: "thin"
+accept_all_eula: true
+
+# Content Library
+#ovf_library_item_id: "8b61862a-c51f-4174-9a84-588b3bc750e6"
+
+# Target
+#folder_id: "group-v102014"
+resource_pool_id: "resgroup-60008"
+
+snapshot_age_days: 7
+
+#vm_list:
+#  - first-vm
+#  - second-vm
