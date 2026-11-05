@@ -1,0 +1,99 @@
+---
+
+- name: Get All VMs from vCenter 
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    vcenter: "10.15.0.222"
+    username: "Administrator@vsphere.htest.local"
+    password: "LiNux-Plu$@2026"
+
+  tasks:
+
+    - name: Login to vCenter
+      uri:
+        url: "https://{{ vcenter }}/rest/com/vmware/cis/session"
+        method: POST
+        user: "{{ username }}"
+        password: "{{ password }}"
+        force_basic_auth: true
+        validate_certs: false
+        return_content: true
+      register: login
+
+    - name: Get all VMs
+      uri:
+        url: "https://{{ vcenter }}/rest/vcenter/vm"
+        method: GET
+        headers:
+          vmware-api-session-id: "{{ login.json.value }}"
+        validate_certs: false
+        return_content: true
+      register: vm_list
+    - name: Create list of all VMs
+      ansible.builtin.set_fact:
+        all_vms: >-
+          {{
+            vm_list.json.value
+            | map(attribute='name')
+            | list
+          }}
+    - name: Save all VM names to YAML file
+      ansible.builtin.copy:
+        dest: "./api_all_vms.yml"
+        content: |
+          all_vms:
+          {% for vm in all_vms %}
+            - {{ vm }}
+          {% endfor %}
+    - name: Show all VMs
+      ansible.builtin.debug:
+        var: all_vms
+
+    - name: Create temporary directory
+      ansible.builtin.file:
+        path: /tmp/vm_report
+        state: directory
+
+    - name: Clone GitLab repository
+      ansible.builtin.git:
+        repo: "http://10.77.99.118/root/nxt.git"
+        dest: /tmp/vm_report
+        version: main
+        force: true
+
+    - name: Copy VM report to repository
+      ansible.builtin.copy:
+        src: "./api_all_vms.yml"
+        dest: "/tmp/vm_report/api_all_vms.yml"
+        remote_src: true
+
+    - name: Configure Git username
+      ansible.builtin.command:
+        cmd: git config user.name "Ansible Automation"
+        chdir: /tmp/vm_report
+
+    - name: Configure Git email
+      ansible.builtin.command:
+        cmd: git config user.email "ansible@company.com"
+        chdir: /tmp/vm_report
+
+    - name: Add report file
+      ansible.builtin.command:
+        cmd: git add api_all_vms.yml
+        chdir: /tmp/vm_report
+
+    - name: Commit report
+      ansible.builtin.command:
+        cmd: git commit -m "Update VM list "
+        chdir: /tmp/vm_report
+      register: git_commit
+      failed_when: false
+      changed_when: "'nothing to commit' not in git_commit.stdout"
+
+    - name: Push changes to GitLab
+      ansible.builtin.command:
+        cmd: git push origin main
+        chdir: /tmp/vm_report
+      when: git_commit.rc == 0
