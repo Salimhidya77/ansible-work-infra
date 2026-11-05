@@ -1,0 +1,57 @@
+---
+
+- name: Get Powered On VMs from vCenter REST API
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    vcenter: "10.15.0.222"
+    username: "Administrator@vsphere.htest.local"
+    password: "LiNux-Plu$@2026"
+
+  tasks:
+
+    - name: Login to vCenter
+      uri:
+        url: "https://{{ vcenter }}/rest/com/vmware/cis/session"
+        method: POST
+        user: "{{ username }}"
+        password: "{{ password }}"
+        force_basic_auth: true
+        validate_certs: false
+        return_content: true
+      register: login
+
+    - name: Get all VMs
+      uri:
+        url: "https://{{ vcenter }}/rest/vcenter/vm"
+        method: GET
+        headers:
+          vmware-api-session-id: "{{ login.json.value }}"
+        validate_certs: false
+        return_content: true
+      register: vm_list
+
+    - name: Create list of Powered On VMs
+      ansible.builtin.set_fact:
+        powered_on_vms: >-
+          {{
+            vm_list.json.value
+            | selectattr('power_state', 'equalto', 'POWERED_ON')
+            | map(attribute='name')
+            | list
+          }}
+
+    - name: Save Powered On VM names to YAML file
+      ansible.builtin.copy:
+        dest: "./all_started_machines.yml"
+        content: |
+          all_vms:
+          {% for vm in powered_on_vms %}
+            - {{ vm }}
+          {% endfor %}
+
+    - name: Show Powered On VMs
+      ansible.builtin.debug:
+        var: powered_on_vms
+
