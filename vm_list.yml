@@ -1,0 +1,12 @@
+vm_list:
+  - name: first-vm
+    folder: "temp-folder-salim"
+
+  - name: second-vm
+    folder: "temp-folder-salim"
+    
+  - name: thrid-vm
+    folder: "temp-folder-salim"
+  
+  - name: vm-from-template
+    folder: "temp-folder-please-delete-without-asking-marawan-and-salem"
