@@ -1,0 +1,49 @@
+---
+
+- name: Create new VM
+  hosts: localhost
+  gather_facts: false
+  ignore_errors: true
+  vars_files:
+   - vars.yml
+  tasks:
+    - name: Get the existing resource pools
+      vmware.vmware_rest.vcenter_resourcepool_info:
+        vcenter_hostname: "{{ vcenter_hostname }}"
+        vcenter_username: "{{ vcenter_username }}"
+        vcenter_password: "{{ vcenter_password }}"
+        vcenter_validate_certs: "{{ vcenter_validate_certs }}"
+      register: resource_pools
+
+    - name: View resources info
+      debug:
+        var: resource_pools
+
+    - name: Create Folder
+      vmware.vmware.folder:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: "{{ vcenter_validate_certs }}"
+        datacenter: "{{ datacenter_name }}"
+        relative_path: "{{ folder_name }}"
+        folder_type: "{{ folder_type }}"
+
+    - name: Deploy a new VM based on the template
+      vmware.vmware_rest.vcenter_ovf_libraryitem:
+        vcenter_hostname: "{{ vcenter_hostname }}"
+        vcenter_username: "{{ vcenter_username }}"
+        vcenter_password: "{{ vcenter_password }}"
+        vcenter_validate_certs: "{{ vcenter_validate_certs }}"
+        session_timeout: "{{ session_timeout }}"
+        deployment_spec:
+          name: "{{ item }}"
+          accept_all_EULA: "{{ accept_all_eula }}"
+          storage_provisioning: "{{ storage_provisioning }}"
+        ovf_library_item_id: "{{ ovf_library_item_id }}"
+        target:
+          folder_id: "{{ folder_id }}"
+          resource_pool_id: "{{ resource_pool_id }}"
+        state: deploy
+      register: my_new_vm
+      loop: "{{ vm_list }}"
