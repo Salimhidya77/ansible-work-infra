@@ -1,0 +1,43 @@
+---
+
+- name: Get list of all VMs from vCenter and save to file
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+
+    - name: Gather VM information
+      community.vmware.vmware_vm_info:
+        hostname: "10.15.0.222"
+        username: "Administrator@vsphere.htest.local"
+        password: "LiNux-Plu$@2026"
+        validate_certs: false
+      register: vm_info
+
+    - name: Create list of VM names
+      ansible.builtin.set_fact:
+        all_vms: "{{ all_vms | default([]) + [vm_name] }}"
+      vars:
+        vm_name: >-
+          {{
+            item.name
+            | default(item.guest_name)
+            | default(item.vm)
+            | default(item.uuid)
+            | default('Unknown')
+          }}
+      loop: "{{ vm_info.virtual_machines }}"
+
+    - name: Save VM names to YAML file
+      ansible.builtin.copy:
+        dest: "./All_machines.yml"
+        content: |
+          all_vms:
+          {% for vm in all_vms %}
+            - {{ vm }}
+          {% endfor %}
+
+    - name: Show generated file content
+      ansible.builtin.debug:
+        var: all_vms
+
