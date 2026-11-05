@@ -1,0 +1,23 @@
+---
+
+- name: get snap data
+  hosts: localhost
+  vars_files:
+    - vars.yml
+  tasks:
+    - name: Collect snapshot information
+      community.vmware.vmware_guest_snapshot_info:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        datacenter: "{{ datacenter_name }}"
+        folder: "{{ folder_name }}"
+        name: "{{ vm_name }}"
+        validate_certs: false
+      register: snapshot_info
+      #loop: "{{ vm_list }}"
+
+    - name: Display snapshot information
+      debug:
+        var: snapshot_info
+
