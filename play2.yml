@@ -1,9 +1,0 @@
----
-- name: Create group and user
-  hosts: localhost
-  become: true
-  gather_facts: no
-  tasks:
-    - name: print message
-      debug:
-        msg: hello for every one
