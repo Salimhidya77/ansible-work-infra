@@ -1,0 +1,53 @@
+---
+
+- name: Get Powered On VMs from vCenter REST API
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    vcenter: "10.15.0.222"
+    username: ""
+    password: ""
+
+  tasks:
+
+    - name: Login to vCenter
+      uri:
+        url: "https://{{ vcenter }}/rest/com/vmware/cis/session"
+        method: POST
+        user: "{{ username }}"
+        password: "{{ password }}"
+        force_basic_auth: true
+        validate_certs: false
+        return_content: true
+      register: login
+
+    - name: Get all VMs
+      uri:
+        url: "https://{{ vcenter }}/rest/vcenter/vm"
+        method: GET
+        headers:
+          vmware-api-session-id: "{{ login.json.value }}"
+        validate_certs: false
+        return_content: true
+      register: vm_list
+    - name: Create list of all VMs
+      ansible.builtin.set_fact:
+        all_vms: >-
+          {{
+            vm_list.json.value
+            | map(attribute='name')
+            | list
+          }}
+    - name: Save all VM names to YAML file
+      ansible.builtin.copy:
+        dest: "./api_all_vms.yml"
+        content: |
+          all_vms:
+          {% for vm in all_vms %}
+            - {{ vm }}
+          {% endfor %}
+    - name: Show all VMs
+      ansible.builtin.debug:
+        var: all_vms
+
