@@ -1,0 +1,80 @@
+---
+
+- name: Remove VMware snapshots older than many days .
+  hosts: localhost
+  gather_facts: true
+
+  vars_files:
+    - vars.yml
+    - vm_list.yml
+
+  tasks:
+
+    - name: Get snapshot information
+      community.vmware.vmware_guest_snapshot_info:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: false
+        datacenter: "{{ datacenter_name }}"
+        folder: "{{ item.folder }}"
+        name: "{{ item.name }}"
+      loop: "{{ vm_list }}"
+      register: snapshot_info
+
+    - name: Show snapshot information
+      debug:
+        var: snapshot_info.results
+
+    - name: Get current UTC time
+      ansible.builtin.set_fact:
+        current_time: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%S%z') }}"
+
+    - name: Show snapshots older than {{ snapshot_age_days }} days
+      debug:
+        msg:
+          - "VM Name      : {{ item.0.item.name }}"
+          - "Snapshot Name: {{ item.1.name }}"
+          - "Created Time : {{ item.1.creation_time }}"
+      loop: "{{ snapshot_info.results | subelements('guest_snapshots.snapshots', skip_missing=True) }}"
+      when: >
+        (
+          (
+            current_time
+            | to_datetime('%Y-%m-%dT%H:%M:%S%z')
+          )
+          -
+          (
+            item.1.creation_time
+            | to_datetime('%Y-%m-%dT%H:%M:%S.%f%z')
+          )
+        ).total_seconds() > (snapshot_age_days * 24 * 60 * 60)
+
+    - name: Remove snapshots older than {{ snapshot_age_days }} days
+      community.vmware.vmware_guest_snapshot:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: false
+        datacenter: "{{ datacenter_name }}"
+        folder: "{{ item.0.item.folder }}"
+        name: "{{ item.0.item.name }}"
+        snapshot_name: "{{ item.1.name }}"
+        state: absent
+      loop: "{{ snapshot_info.results | subelements('guest_snapshots.snapshots', skip_missing=True) }}"
+      when: >
+        (
+          (
+            current_time
+            | to_datetime('%Y-%m-%dT%H:%M:%S%z')
+          )
+          -
+          (
+            item.1.creation_time
+            | to_datetime('%Y-%m-%dT%H:%M:%S.%f%z')
+          )
+        ).total_seconds() > (snapshot_age_days * 24 * 60 * 60)
+
+    - name: Snapshot cleanup completed .
+      debug:
+        msg: "Snapshot cleanup completed successfully."
